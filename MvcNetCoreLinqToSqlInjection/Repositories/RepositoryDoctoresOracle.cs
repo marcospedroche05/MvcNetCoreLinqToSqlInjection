@@ -1,24 +1,37 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
 using MvcNetCoreLinqToSqlInjection.Models;
+using Oracle.ManagedDataAccess.Client;
 using System.Data;
+
+#region STORED PROCEDURES
+
+//create or replace procedure SP_DELETE_DOCTOR
+//(p_iddoctor DOCTOR.DOCTOR_NO%type)
+//AS
+//begin
+//    delete from DOCTOR where DOCTOR_NO=p_iddoctor;
+//commit;
+//end;
+
+#endregion
 
 namespace MvcNetCoreLinqToSqlInjection.Repositories
 {
-    public class RepositoryDoctoresSQLServer : IRepositoryDoctores
+    public class RepositoryDoctoresOracle : IRepositoryDoctores
     {
-        private SqlConnection cn;
-        private SqlCommand com;
         private DataTable tablaDoctor;
+        private OracleConnection cn;
+        private OracleCommand com;
 
-        public RepositoryDoctoresSQLServer()
+        public RepositoryDoctoresOracle()
         {
-            string connectionString = @"Data Source=LOCALHOST\DEVELOPER;Initial Catalog=HOSPITAL;Persist Security Info=True;User ID=SA;Encrypt=True;Trust Server Certificate=True";
-            this.cn = new SqlConnection(connectionString);
-            this.com = new SqlCommand();
+            string connectionString = @"Data Source=LOCALHOST:1521/FREEPDB1; Persist Security Info=true;User Id=SYSTEM;Password=oracle";
+            this.cn = new OracleConnection(connectionString);
+            this.com = new OracleCommand();
             this.com.Connection = this.cn;
+            this.tablaDoctor = new DataTable();
             string sql = "SELECT * FROM DOCTOR";
-            SqlDataAdapter ad = new SqlDataAdapter(sql, this.cn);
-            this.tablaDoctor = new DataTable(sql, connectionString);
+            OracleDataAdapter ad = new OracleDataAdapter(sql, this.cn);
             ad.Fill(this.tablaDoctor);
         }
 
@@ -27,7 +40,7 @@ namespace MvcNetCoreLinqToSqlInjection.Repositories
             var consulta = from datos in this.tablaDoctor.AsEnumerable()
                            select datos;
             List<Doctor> doctores = new List<Doctor>();
-            foreach(var row in consulta)
+            foreach (var row in consulta)
             {
                 Doctor doc = new Doctor();
                 doc.IdDoctor = row.Field<int>("DOCTOR_NO");
@@ -43,12 +56,19 @@ namespace MvcNetCoreLinqToSqlInjection.Repositories
         public async Task CreateDoctorAsync(int idDoctor, string apellido, string especialidad,
                                 int salario, int idHospital)
         {
-            string sql = "INSERT INTO DOCTOR VALUES(@idhospital, @id, @apellido, @especialidad, @salario)";
-            this.com.Parameters.AddWithValue("@idhospital", idHospital);
-            this.com.Parameters.AddWithValue("@id", idDoctor);
-            this.com.Parameters.AddWithValue("@apellido", apellido);
-            this.com.Parameters.AddWithValue("@especialidad", especialidad);
-            this.com.Parameters.AddWithValue("@salario", salario);
+            string sql = "INSERT INTO DOCTOR VALUES(:idhospital, :id, :apellido, :especialidad, :salario)";
+
+            //AQUI VAN LOS PARAMETROS...
+            OracleParameter pamIdHospital = new OracleParameter(":idhospital", idHospital);
+            OracleParameter pamIdDoctor = new OracleParameter(":id", idDoctor);
+            OracleParameter pamApellido = new OracleParameter(":apellido", apellido);
+            OracleParameter pamEspe = new OracleParameter(":especialidad", especialidad);
+            OracleParameter pamSal = new OracleParameter(":salario", salario);
+            this.com.Parameters.Add(pamIdHospital);
+            this.com.Parameters.Add(pamIdDoctor);
+            this.com.Parameters.Add(pamApellido);
+            this.com.Parameters.Add(pamEspe);
+            this.com.Parameters.Add(pamSal);
 
             this.com.CommandType = CommandType.Text;
             this.com.CommandText = sql;
@@ -63,7 +83,8 @@ namespace MvcNetCoreLinqToSqlInjection.Repositories
         public async Task DeleteDoctorAsync(int idDoctor)
         {
             string sql = "SP_DELETE_DOCTOR";
-            this.com.Parameters.AddWithValue("@iddoctor", idDoctor);
+            OracleParameter pamId = new OracleParameter(":p_iddoctor", idDoctor);
+            this.com.Parameters.Add(pamId);
             this.com.CommandType = CommandType.StoredProcedure;
             this.com.CommandText = sql;
 
@@ -77,11 +98,16 @@ namespace MvcNetCoreLinqToSqlInjection.Repositories
         public async Task UpdateDoctorAsync(int idHospital, int idDoctor, string apellido, string especialidad, int salario)
         {
             string sql = "SP_UPDATE_DOCTOR";
-            this.com.Parameters.AddWithValue("@idhospital", idHospital);
-            this.com.Parameters.AddWithValue("@iddoctor", idDoctor);
-            this.com.Parameters.AddWithValue("@apellido", apellido);
-            this.com.Parameters.AddWithValue("@especialidad", especialidad);
-            this.com.Parameters.AddWithValue("@salario", salario);
+            OracleParameter pamIdHospital = new OracleParameter(":p_idhospital", idHospital);
+            OracleParameter pamIdDoctor = new OracleParameter(":p_iddoctor", idDoctor);
+            OracleParameter pamApellido = new OracleParameter(":p_apellido", apellido);
+            OracleParameter pamEspe = new OracleParameter(":p_especialidad", especialidad);
+            OracleParameter pamSal = new OracleParameter(":p_salario", salario);
+            this.com.Parameters.Add(pamIdHospital);
+            this.com.Parameters.Add(pamIdDoctor);
+            this.com.Parameters.Add(pamApellido);
+            this.com.Parameters.Add(pamEspe);
+            this.com.Parameters.Add(pamSal);
 
             this.com.CommandType = CommandType.StoredProcedure;
             this.com.CommandText = sql;
@@ -116,7 +142,7 @@ namespace MvcNetCoreLinqToSqlInjection.Repositories
                            where datos.Field<string>("ESPECIALIDAD") == especialidad
                            select datos;
             List<Doctor> doctores = new List<Doctor>();
-            foreach(var row in consulta)
+            foreach (var row in consulta)
             {
                 Doctor doc = new Doctor
                 {

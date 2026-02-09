@@ -21,7 +21,7 @@ builder.Services.AddControllersWithViews();
 //builder.Services.AddSingleton<ICoche, Deportivo>();
 
 //NOTA, LOS REPOS SUELEN IR COMO TRANSIENT
-builder.Services.AddTransient<RepositoryDoctoresSQLServer>();
+builder.Services.AddTransient<IRepositoryDoctores, RepositoryDoctoresOracle>();
 
 var app = builder.Build();
 
